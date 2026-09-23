@@ -2,36 +2,86 @@
 
 ```mermaid
 flowchart LR
-    A[Données patient] --> B[Agent orchestrateur]
-    C[Compte-rendu médical] --> B
+    subgraph SIH["SI hospitalier (source)"]
+        DPI[("DPI : données structurées")]
+        CR[("Comptes-rendus<br/>(texte libre)")]
+    end
 
-    B --> D[Agent contrôle des entrées]
+    subgraph PF["Plateforme MediVox (équipe data)"]
+        ORCH["Agent orchestrateur"]
+        CTRL["Agent contrôle des entrées"]
+        E{"Données exploitables ?"}
 
-    D --> E{Données exploitables ?}
+        subgraph AG["Agents spécialisés"]
+            ADS{{"Agent données structurées"}}
+            AEC{{"Agent extraction clinique"}}
+        end
 
-    E -->|Non| F[Revue humaine / HITL]
+        CONS["Consolidation des variables"]
+        VAL["Agent validation"]
+        K{"Résultats cohérents ?"}
 
-    E -->|Oui| G[Agent données structurées]
-    E -->|Oui| H[Agent extraction clinique]
+        ML(["Modèle ML DMS"])
+        S{"Proba en zone<br/>d'incertitude ?"}
 
-    G --> I[Variables consolidées]
-    H --> I
+        LOG[("Logs : agents appelés,<br/>sorties, erreurs, décisions")]
+        MON["Monitoring<br/>agents + ML + latence"]
+    end
 
-    I --> J[Agent validation]
+    subgraph ETAB["Établissement (humains)"]
+        HUM("Revue humaine / HITL<br/>qui · délai · trace")
+        OUT[/"Score de risque de séjour prolongé<br/>→ équipe soignante"/]
+    end
 
-    J --> K{Résultat cohérent ?}
+    DPI --> ORCH
+    CR --> ORCH
 
-    K -->|Non| F
-    K -->|Oui| L[Modèle ML DMS]
+    ORCH --> CTRL
+    CTRL --> E
 
-    L --> M{Confiance suffisante ?}
+    E -->|oui| ADS
+    E -->|oui| AEC
+    E -.->|non| HUM
 
-    M -->|Oui| N[Prédiction séjour prolongé]
-    M -->|Non| F
+    ADS --> CONS
+    AEC --> CONS
 
-    N --> O[Restitution métier]
+    CONS --> VAL
+    VAL --> K
 
-    B --> P[Logs / traçabilité]
+    K -->|oui| ML
+    K -.->|non / conflit entre agents| HUM
+
+    ML --> S
+    S -->|non| OUT
+    S -.->|oui| HUM
+
+    HUM -.->|données corrigées / validées| CONS
+    HUM -.->|validation du score| OUT
+
+    ORCH --> LOG
+    ADS --> LOG
+    AEC --> LOG
+    VAL --> LOG
+
+    LOG -.-> MON
+    ML -.-> MON
+
+    classDef data fill:#e5e7eb,stroke:#6b7280,color:#111
+    classDef code fill:#ffffff,stroke:#6b7280,color:#111
+    classDef ml fill:#bfdbfe,stroke:#1d4ed8,color:#111
+    classDef llm fill:#fed7aa,stroke:#c2410c,color:#111
+    classDef dec fill:#fef08a,stroke:#a16207,color:#111
+    classDef hum fill:#bbf7d0,stroke:#15803d,color:#111
+    classDef out fill:#e9d5ff,stroke:#7e22ce,color:#111
+
+    class DPI,CR,LOG data
+    class ORCH,CTRL,CONS,VAL,MON code
+    class ADS,AEC llm
+    class ML ml
+    class E,K,S dec
+    class HUM hum
+    class OUT out
 ```
 
 **Principe** : 
